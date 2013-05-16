@@ -22,6 +22,7 @@ MANUALLY ADDING DONATORS:
 * 		v0.3 - Safe SQL calls, API additions/ changes
 * 		v0.4 - Added option for using a flatfile
 *		v0.4.2 - Changed chat trigger, using SQL (Malachi)
+*		v0.4.3 - changed chat trigger to reg. cmd, return msg for non-donators (Malachi)
 */
 
 #include <sourcemod>
@@ -34,7 +35,7 @@ MANUALLY ADDING DONATORS:
 //uncomment to use SQL
 #define USESQL
 
-#define DONATOR_VERSION "0.4.2"
+#define DONATOR_VERSION "0.4.3"
 
 #if defined USESQL
 
@@ -42,16 +43,16 @@ MANUALLY ADDING DONATORS:
 #define SQL_CONFIG		"tf2donators"
 #define SQL_DBNAME		"donators"
 
-
-
 #else
-#include <clientprefs>
 
+#include <clientprefs>
 #define DONATOR_FILE	"donators.txt"
 
 #endif
 
-#define CHAT_TRIGGER 	"!ngc"
+
+#define CHAT_TRIGGER 	"sm_ngc"
+
 
 new Handle:g_hForward_OnDonatorConnect = INVALID_HANDLE;
 new Handle:g_hForward_OnPostDonatorCheck = INVALID_HANDLE;
@@ -64,8 +65,10 @@ new Handle:g_hMenuItems = INVALID_HANDLE;
 new bool:g_bIsDonator[MAXPLAYERS + 1];
 new g_iMenuId, g_iMenuCount;
 
+
 #if defined USESQL
 new Handle:g_hDataBase = INVALID_HANDLE;
+
 
 //add cols to expand the sql storage
 enum SQLCOLS
@@ -75,6 +78,7 @@ enum SQLCOLS
 	tag
 };
 
+
 new const String:db_cols[SQLCOLS][] = 
 {
 	"steamid",
@@ -82,10 +86,12 @@ new const String:db_cols[SQLCOLS][] =
 	"tag"
 };
 
+
 #else
 new Handle:g_CookieTag = INVALID_HANDLE;
 new Handle:g_CookieLevel = INVALID_HANDLE;
 #endif
+
 
 public Plugin:myinfo = 
 {
@@ -95,6 +101,7 @@ public Plugin:myinfo =
 	version = DONATOR_VERSION,
 	url = "http://www.lolsup.com/tf2"
 }
+
 
 public OnPluginStart()
 {
@@ -119,14 +126,15 @@ public OnPluginStart()
 
 	g_hMenuItems = CreateArray();
 	
-	AddCommandListener(SayCallback, "say");
-	AddCommandListener(SayCallback, "say_team");
+	RegConsoleCmd(CHAT_TRIGGER, SayCallback, "Display donator menu to donators.");
 }
+
 
 #if defined USESQL
 public OnPluginEnd()
 	CloseHandle(g_hDataBase);
 #endif
+
 
 public OnClientAuthorized(iClient, const String:szAuthId[])
 {
@@ -141,6 +149,7 @@ public OnClientAuthorized(iClient, const String:szAuthId[])
 		Forward_OnDonatorConnect(iClient);
 	}
 }
+
 
 public OnClientPostAdminCheck(iClient)
 {
@@ -163,24 +172,23 @@ public OnClientPostAdminCheck(iClient)
 	Forward_OnPostDonatorCheck(iClient);
 }
 
-public Action:SayCallback(iClient, const String:command[], argc)
+
+public Action:SayCallback(iClient, args)
 {
 	if(!iClient) return Plugin_Continue;
-	if (!g_bIsDonator[iClient]) return Plugin_Continue;
 	
-	decl String:szArg[255];
-	GetCmdArgString(szArg, sizeof(szArg));
-
-	StripQuotes(szArg);
-	TrimString(szArg);
-	
-	if (StrEqual(szArg, CHAT_TRIGGER, false))
+	if (g_bIsDonator[iClient])
 	{
 		ShowDonatorMenu(iClient);
-		return Plugin_Handled;
 	}
-	return Plugin_Continue;
+	else
+	{
+		PrintToChat(iClient, "\x01[SM] If you would like to receive donator benefits, please donate at Necrophix.com - thanks!");
+	}
+
+	return Plugin_Handled;
 }
+
 
 public Action:ShowDonatorMenu(client)
 {
@@ -197,6 +205,7 @@ public Action:ShowDonatorMenu(client)
 	}
 	DisplayMenu(menu, client, 20);
 }
+
 
 public DonatorMenuSelected(Handle:menu, MenuAction:action, param1, param2)
 {
@@ -218,6 +227,7 @@ public DonatorMenuSelected(Handle:menu, MenuAction:action, param1, param2)
 		case MenuAction_End: CloseHandle(menu);
 	}
 }
+
 
 public Action:cmd_ReloadDonators(client, args)
 {
@@ -245,6 +255,7 @@ public Action:cmd_ReloadDonators(client, args)
 	
 	return Plugin_Handled;
 }
+
 
 public LoadDonators()
 {
@@ -279,6 +290,7 @@ public LoadDonators()
 	#endif
 }
 
+
 //--------------------------------------SQL---------------------------------------------
 #if defined USESQL
 public SQL_OpenConnection()
@@ -288,6 +300,7 @@ public SQL_OpenConnection()
 	else
 		SetFailState("Unabled to load cfg file (%s)", SQL_CONFIG);
 }
+
 
 public T_InitDatabase(Handle:owner, Handle:hndl, const String:error[], any:data)
 {
@@ -299,6 +312,7 @@ public T_InitDatabase(Handle:owner, Handle:hndl, const String:error[], any:data)
 	else  
 		LogError("DATABASE FAILURE: %s", error);
 }
+
 
 public T_LoadDonators(Handle:owner, Handle:hndl, const String:error[], any:data)
 {
@@ -324,6 +338,7 @@ public T_LoadDonators(Handle:owner, Handle:hndl, const String:error[], any:data)
 		LogError("Query failed! %s", error);
 }
 
+
 public SQLErrorCheckCallback(Handle:owner, Handle:hndl, const String:error[], any:data)
 {
 	if (strlen(error) > 1)
@@ -331,6 +346,7 @@ public SQLErrorCheckCallback(Handle:owner, Handle:hndl, const String:error[], an
 }
 #endif
 //-----------------------------------------------------------------------------------------
+
 
 /*
 * Natives
@@ -345,6 +361,7 @@ public Native_GetDonatorLevel(Handle:plugin, params)
 	else
 		return -1;
 }
+
 
 public Native_SetDonatorLevel(Handle:plugin, params)
 {
@@ -375,6 +392,7 @@ public Native_SetDonatorLevel(Handle:plugin, params)
 	ThrowNativeError(SP_ERROR_NATIVE, "Not implimented.");
 }
 
+
 public Native_IsClientDonator(Handle:plugin, params)
 {
 	decl String:szSteamId[64], iLevel;
@@ -384,6 +402,7 @@ public Native_IsClientDonator(Handle:plugin, params)
 	return false;
 }
 
+
 public Native_FindDonatorBySteamId(Handle:plugin, params)
 {
 	decl String:szSteamId[64], iLevel;
@@ -392,6 +411,7 @@ public Native_FindDonatorBySteamId(Handle:plugin, params)
 		return true;
 	return false;
 }
+
 
 public Native_GetDonatorMessage(Handle:plugin, params)
 {
@@ -405,6 +425,7 @@ public Native_GetDonatorMessage(Handle:plugin, params)
 	}
 	return -1;
 }
+
 
 public Native_SetDonatorMessage(Handle:plugin, params)
 {
@@ -429,6 +450,7 @@ public Native_SetDonatorMessage(Handle:plugin, params)
 	}
 	return -1;
 }
+
 
 public Native_RegisterMenuItem(Handle:hPlugin, iNumParams)
 {
@@ -463,6 +485,8 @@ public Native_RegisterMenuItem(Handle:hPlugin, iNumParams)
 	PushArrayCell(g_hMenuItems, hItem);
 	return id;
 }
+
+
 public Native_UnregisterMenuItem(Handle:hPlugin, iNumParams)
 {
 	new Handle:hTempItem;
@@ -479,6 +503,8 @@ public Native_UnregisterMenuItem(Handle:hPlugin, iNumParams)
 	}
 	return false;
 }
+
+
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	RegPluginLibrary("donator.core");
@@ -493,6 +519,7 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	return APLRes_Success;
 }
 
+
 //-------------------FORWARDS--------------------------
 /*
 * Forwards for donators connecting
@@ -506,10 +533,10 @@ public Forward_OnDonatorConnect(iClient)
 	return result;
 }
 
+
 /*
 *  Forwards for everyone - use to check for admin status/ cookies should be cached now
 */
-
 public Forward_OnPostDonatorCheck(iClient)
 {
 	new bool:result;
@@ -519,10 +546,10 @@ public Forward_OnPostDonatorCheck(iClient)
 	return result;
 }
 
+
 /*
 *  Forwards when the donators have been reloaded
 */
-
 public Forward_OnDonatorsChanged()
 {
 	new bool:result;
