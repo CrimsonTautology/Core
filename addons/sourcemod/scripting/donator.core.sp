@@ -1,21 +1,4 @@
 /*
-If you want to use SQL here is some info to get you started:
-
-SQL TABLE INFO:
-
-	CREATE TABLE IF NOT EXISTS `donators` (
-	  `steamid` varchar(64) default NULL,
-	  `tag` varchar(128) NOT NULL,
-	  `level` tinyint(1) NOT NULL default '1'
-	)
-
-MANUALLY ADDING DONATORS:
-
-	INSERT INTO `donators` ( `steamid` , `tag`, `level` ) VALUES ( 'STEAMID', 'THIS IS A TAG', 5 );
-
-*/
-
-/*
 * 	Change Log:
 * 		v0.1 - inital release
 * 		v0.2 - Fixed menu expandability/ trigger cmd
